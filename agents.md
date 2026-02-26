@@ -29,12 +29,12 @@ This automatically creates:
 
 ## MCP Integration (Interactive Mode)
 
-The MCP server auto-discovers via `.mcp.json` when you open the project in Claude Code.
+The MCP server is configured in `opencode.json` (for OpenCode) and `.mcp.json` (for Claude Code) at the project root.
 
 ### Quick Start
 
 1. Install dependencies: `bun install` (from project root)
-2. Open project in Claude Code — approve the MCP server when prompted
+2. Open project in your AI coding tool — the MCP server will be available automatically
 3. Control your bot with suggestions.
 
 ### Tools
