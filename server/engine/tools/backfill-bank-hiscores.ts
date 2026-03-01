@@ -40,7 +40,7 @@ const allPlaytimes = await db
     .orderBy('hiscore_large.playtime', 'desc')
     .execute();
 
-const cutoffIndex = Math.ceil(allPlaytimes.length * 0.05);
+const cutoffIndex = Math.ceil(allPlaytimes.length * 0.15);
 const cutoffPlaytime = allPlaytimes[cutoffIndex - 1]?.playtime ?? 0;
 
 const eligibleAccounts = new Map<string, number>();
@@ -51,7 +51,7 @@ for (const row of allPlaytimes) {
 }
 
 console.log(`Total accounts with hiscores: ${allPlaytimes.length}`);
-console.log(`Top 5% cutoff: ${cutoffPlaytime} ticks playtime (${eligibleAccounts.size} accounts eligible)`);
+console.log(`Top 15% cutoff: ${cutoffPlaytime} ticks playtime (${eligibleAccounts.size} accounts eligible)`);
 
 const files = (await fsp.readdir(saveDir)).filter(f => f.endsWith('.sav'));
 console.log(`Found ${files.length} save files in ${saveDir}`);
