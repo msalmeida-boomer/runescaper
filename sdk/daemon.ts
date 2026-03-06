@@ -223,10 +223,18 @@ async function main() {
         console.warn = (...args) => logs.push('[warn] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)).join(' '));
 
         try {
-            // Transpile TS → JS so type annotations, interfaces, etc. are stripped
+            // Transpile TS → JS so type annotations, interfaces, etc. are stripped.
+            // Wrap in a function body so the transpiler accepts top-level return/await
+            // (some Bun versions reject top-level return in ESM-mode .ts files).
             let jsCode: string;
             try {
-                jsCode = transpiler.transformSync(code);
+                const wrapped = `async function __b(){\n${code}\n}`;
+                const transpiled = transpiler.transformSync(wrapped);
+                // Extract function body: drop first line (function decl) and last closing brace
+                const lines = transpiled.split('\n');
+                lines.shift(); // remove "async function __b() {"
+                while (lines.length > 0 && (lines[lines.length - 1].trim() === '}' || lines[lines.length - 1].trim() === '')) lines.pop();
+                jsCode = lines.join('\n');
             } catch (err: any) {
                 return { logs, result: undefined, error: `TypeScript syntax error: ${err.message}`, typeWarnings };
             }

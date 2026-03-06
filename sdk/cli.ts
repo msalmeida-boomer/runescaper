@@ -235,7 +235,6 @@ async function handleExec(botName: string, codeArg: string | undefined, flags: {
         const resp = await sendToDaemon(botName, {
             type: 'exec',
             code,
-            timeout: flags.timeout,
         });
 
         if (resp.output) {
