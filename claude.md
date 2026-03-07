@@ -108,7 +108,7 @@ A failed 5-minute run wastes more time than five 30 second diagnostic runs. **Fa
 Be extremely cognizant of pathing issues. It's very common to have issues because of closed doors and gates.
 Look out for "I can't reach" messages - the solution is often to open closed gates. 
 
-Read and grep in the learnings folder for tips.
+Read and grep in the learnings folder for tips, and the wiki folder for skill guides, item and npc locations, and shop information.
 
 ## SDK API Reference
 
@@ -215,10 +215,13 @@ sdk/
 
 learnings/
 ├── banking.md
-├── combat.md
-├── shops.md
-├── fletching.md
 └── ...etc
+
+wiki/
+├── npcs/
+├── items/
+├── skills/
+└── shops/
 
 ```
 

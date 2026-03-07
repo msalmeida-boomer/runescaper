@@ -2,72 +2,96 @@
 
 You're here to play the mmo game through the progressive development of botting scripts, starting small then adapting to your desires and ideas.
 
-## CRITICAL FIRST STEP: Start Services
+## First Time Setup
 
-Before doing anything else, run this command to start the game services:
+**Create a new bot using the setup script:**
+
+Ask the user for a bot name (max 12 chars, alphanumeric). If they skip, use the command without a username to auto-generate a random 9-character name.
 
 ```bash
-/ensure-services.sh
+# With custom username
+bun bots/create-bot.ts {username}
+
+# Auto-generate random username
+bun bots/create-bot.ts
+
+# Use local server (sets SERVER=localhost in bot.env)
+bun bots/create-bot.ts {username} --local
+
+# Use a custom server
+bun bots/create-bot.ts {username} --server=myserver.example.com
 ```
 
-This starts the game engine, gateway, and bot client. Wait for it to complete before running any scripts.
-After this, the environment will be:
-- Game engine: running on localhost:8888
-- Gateway: running on localhost:7780
-- Bot client: connected and in-game
+This automatically creates:
+- `bots/{username}/bot.env` - Credentials with auto-generated password
+- `bots/{username}/lab_log.md` - Session notes template
+- `bots/{username}/script.ts` - Ready-to-run starter script
 
-Do NOT try to start these services manually or write your own startup scripts.
+## CLI Daemon (Interactive Mode)
 
-The bot account "agent" already exists with credentials in `bots/agent/bot.env`.
+The CLI supports a daemon mode for persistent bot connections and inline code execution.
 
-## How to Control the Bot
-
-Write TypeScript scripts and run them with `bun`. Use the `runScript` helper for automatic connection management.
-
-### Check Bot State First
+### Quick Start
 
 ```bash
-bun sdk/cli.ts agent
+# Execute code on a bot (auto-starts daemon if needed)
+bun sdk/cli.ts mybot exec "return sdk.getState()?.player"
+
+# Execute via heredoc (avoids shell quoting)
+bun sdk/cli.ts mybot exec <<'EOF'
+await bot.chopTree()
+return sdk.getInventory()
+EOF
+
+# Check state (uses daemon if running, otherwise one-shot)
+bun sdk/cli.ts mybot state
+bun sdk/cli.ts mybot state --json
+
+# Stop the daemon
+bun sdk/cli.ts mybot stop
+```
+
+The daemon holds the bot connection alive between commands. It auto-starts on first `exec` and shuts down after 5 minutes of idle time.
+
+Code runs in an async context with `bot` (BotActions) and `sdk` (BotSDK) available as globals.
+
+## Session Workflow
+
+This is a **persistent character** - you don't restart fresh each time. The workflow is:
+
+### 1. Check World State First
+
+Before writing any script, check where the bot is and what it has:
+
+```bash
+bun sdk/cli.ts {username}
 ```
 
 This shows: position, inventory, skills, nearby NPCs/objects, and more.
 
-### Script Template
+**Exception**: Skip this if you just created the character and know it's at spawn.
 
-Create scripts in `bots/agent/` and run them:
+**Tutorial Check**: If the character is in the tutorial area, call `await bot.skipTutorial()` before running any other scripts. The tutorial blocks normal gameplay.
 
-```typescript
-// bots/agent/woodcutter.ts
-import { runScript } from '../../sdk/runner';
+### 2. Write Your Script
 
-const result = await runScript(async (ctx) => {
-  const { bot, sdk, log } = ctx;
+Edit `bots/{username}/script_name.ts` with your goal. Keep scripts focused on one task. you may write multiple scripts for different tasks and switch between them.
 
-  let treesChopped = 0;
+### 3. Run the Script
 
-  while (treesChopped < 50) {
-    await bot.dismissBlockingUI();
-
-    const tree = sdk.findNearbyLoc(/^tree$/i);
-    if (tree) {
-      const r = await bot.chopTree(tree);
-      if (r.success) count++;
-    }
-  }
-
-  log(`Chopped ${count} trees`);
-  return { count };
-}, { timeout: 90_000 });
-
-console.log(result);
-```
-
-Run with:
 ```bash
-bun bots/agent/woodcutter.ts
+bun bots/{username}/script_name.ts
 ```
 
-The runner automatically finds `bot.env` in the same directory as the script.
+### 4. Observe and Iterate
+
+Watch the output. After the script finishes (or fails), check state again:
+
+```bash
+bun sdk/cli.ts {username}
+```
+
+Record observations in `lab_log.md`, then improve the script.
 
 ## Script Duration Guidelines
 
@@ -77,39 +101,57 @@ The runner automatically finds `bot.env` in the same directory as the script.
 |----------|----------|
 | **10-30s** | New script, single actions, untested logic, debugging |
 | **2-5 min** | Validated approach, building confidence |
-| **10+ min** | Proven strategy, grinding runs, AVOID UNLESS CONFIDENT |
+| **10+ min** | Proven strategy, grinding runs. USE SPARINGLY |
 
 A failed 5-minute run wastes more time than five 30 second diagnostic runs. **Fail fast and start simple.**
 
+Be extremely cognizant of pathing issues. It's very common to have issues because of closed doors and gates.
+Look out for "I can't reach" messages - the solution is often to open closed gates. 
+
+Read and grep in the learnings folder for tips, and the wiki folder for skill guides, item and npc locations, and shop information.
+
 ## SDK API Reference
 
-See **sdk/API.md** for the complete method reference.
+For the complete method reference, see **[sdk/API.md](sdk/API.md)** (auto-generated from source).
 
-### bot.* (High-level actions that wait for completion)
+**Quick overview:**
+- `bot.*` - High-level actions that wait for effects to complete (chopTree, walkTo, attackNpc, etc.)
+- `sdk.*` - Low-level methods that resolve on server acknowledgment (sendWalk, getState, findNearbyNpc, etc.)
+
+### bot.* Quick Reference
 
 | Method | What it does |
 |--------|-------------|
 | `walkTo(x, z, tolerance?)` | Pathfind to coords, opens doors along the way |
 | `talkTo(target)` | Walk to NPC, start dialog |
-| `interactNpc(target, option?)` | Walk to NPC, interact (e.g. `'trade'`, `'fish'`) |
-| `interactLoc(target, option?)` | Walk to loc, interact (e.g. `'mine'`, `'smelt'`) |
+| `interactNpc(target, option?)` | Walk to NPC, interact with any option (e.g. `'trade'`, `'fish'`) |
+| `interactLoc(target, option?)` | Walk to loc, interact with any option (e.g. `'mine'`, `'smelt'`) |
 | `attackNpc(target)` | Walk to NPC, start combat |
+| `pickpocketNpc(target)` | Pickpocket NPC, detects XP gain vs stun |
+| `castSpellOnNpc(target, spell)` | Cast combat spell on NPC |
 | `chopTree(target?)` | Chop tree, wait for logs |
 | `pickupItem(target)` | Pick up ground item |
+| `openDoor(target?)` | Open a door or gate |
 | `openBank()` | Open nearest bank |
 | `depositItem(target, amount?)` | Deposit item to bank |
 | `withdrawItem(slot, amount?)` | Withdraw item from bank |
+| `openShop(target?)` | Open shop via shopkeeper NPC |
+| `buyFromShop(target, amount?)` | Buy item from open shop |
+| `sellToShop(target, amount?)` | Sell item to open shop |
 | `equipItem(target)` | Equip from inventory |
+| `unequipItem(target)` | Unequip to inventory |
 | `eatFood(target)` | Eat food, returns HP gained |
 | `useItemOnLoc(item, loc)` | Use inventory item on loc (e.g. fish on range) |
+| `useItemOnNpc(item, npc)` | Use inventory item on NPC |
 | `burnLogs(target?)` | Light logs with tinderbox |
 | `fletchLogs(product?)` | Fletch logs with knife |
 | `craftLeather(product?)` | Craft leather with needle |
 | `smithAtAnvil(product)` | Smith bars at anvil |
-| `dismissBlockingUI()` | Dismiss level-up dialogs (**call in every loop**) |
+| `dismissBlockingUI()` | Dismiss level-up dialogs (called automatically by all actions) |
+| `navigateDialog(choices)` | Auto-click through dialog options |
 | `skipTutorial()` | Skip the tutorial island |
 
-### sdk.* (Queries and low-level commands)
+### sdk.* Commonly Used Directly
 
 | Method | What it does |
 |--------|-------------|
@@ -118,17 +160,77 @@ See **sdk/API.md** for the complete method reference.
 | `getInventory()` / `findInventoryItem(pattern)` | Inventory queries |
 | `findNearbyNpc(pattern)` / `findNearbyLoc(pattern)` | Find nearby entities |
 | `findGroundItem(pattern)` | Find ground items |
+| `getDialog()` | Current dialog state |
+| `sendClickDialog(option)` | Click dialog option |
+| `sendClickComponent(id)` | Click interface button |
 | `sendDropItem(slot)` | Drop inventory item |
 | `sendUseItem(slot)` | Use inventory item (bury, etc.) |
 | `sendUseItemOnItem(src, dst)` | Combine two items |
+| `sendSay(message)` | Send chat message |
 | `waitForCondition(pred)` | Wait for state predicate |
 | `waitForTicks(n)` | Wait n game ticks |
+| `scanNearbyLocs(radius?)` | Extended-range loc scan |
 
-## Key Tips
+---
 
-- **ALWAYS** call `bot.dismissBlockingUI()` in every loop iteration — level-ups block everything
-- Use specific regex patterns: `/^tree$/i` not `/tree/i` (which matches "tree stump")
-- Look out for "I can't reach" messages — the solution is often to open closed gates with `bot.openDoor()`
-- Read files in `learnings/` for game-specific tips on banking, combat, shops, etc.
-- Run scripts in the **foreground** so you can see their output
-- The game runs at 8x speed — actions complete much faster than normal
+### Dismiss Level-Up Dialogs
+
+All BotActions methods automatically dismiss blocking UI (level-up dialogs, etc.) before executing. You don't need to call this manually in loops.
+
+```typescript
+// Only needed if using low-level sdk methods directly:
+await bot.dismissBlockingUI();
+
+// Or manually check
+if (sdk.getState()?.dialog.isOpen) {
+    await sdk.sendClickDialog(0);
+}
+```
+
+### Error Handling
+
+```typescript
+const result = await bot.chopTree();
+if (!result.success) {
+    console.log(`Failed: ${result.message}`);
+    // Handle failure - maybe walk somewhere else
+}
+```
+
+## Project Structure
+
+```
+
+bots/
+└── {username}/
+    ├── bot.env        # Credentials (BOT_USERNAME, PASSWORD, SERVER)
+    ├── lab_log.md     # Session notes and observations
+    └── script.ts      # Current script
+
+sdk/
+├── index.ts           # BotSDK (low-level)
+├── actions.ts         # BotActions (high-level)
+├── cli.ts             # CLI for checking state
+└── types.ts           # Type definitions
+
+learnings/
+├── banking.md
+└── ...etc
+
+wiki/
+├── npcs/
+├── items/
+├── skills/
+└── shops/
+
+```
+
+## Troubleshooting
+
+**"No state received"** - Bot isn't connected to game. Open browser first or use `autoLaunchBrowser: true`.
+
+**Script stalls** - Check for open dialogs (`state.dialog.isOpen`). Level-ups block everything.
+
+**"Can't reach"** - Path is blocked. Try walking closer first, or find a different target.
+
+**Wrong target** - Use more specific regex patterns: `/^tree$/i` not `/tree/i` (which matches "tree stump").
