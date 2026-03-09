@@ -12,7 +12,7 @@ First attempt failed — bot died to dark wizards near Draynor Village and lost 
 
 **Baseline:** ~16 minutes, 133,250 XP (~500k XP/hr).
 
-**Benchmark round 1:** Ran 10 script variants overnight testing tick speed, fly fishing, drift tolerance, and spot selection. 9/10 timed out — the over-engineered setup phase (shop navigation, pickpocketing for coins) got most bots stuck before they even started fishing. The one variant that finished (tight drift tolerance) took 21 min — slower than the simple baseline. Lesson learned: simplicity wins. Re-benchmarking with a stripped-down script next.
+**Benchmarking:** Ran 4 rounds of automated benchmarks testing tick speed, drop timing, drift tolerance, and spot selection. Most of the work ended up being debugging the benchmark framework itself — found three bugs along the way: an over-engineered setup phase that got bots stuck before they even started fishing, level-up dialogs silently blocking all interactions (costing ~60s per level-up), and an escape route that ran bots north into dark wizards instead of south to safety. After fixing all three, the baseline lands consistently around ~20 min. The ~4 min gap vs the original run is likely framework overhead. Still haven't beaten the original simple script.
 
 ## Setup
 
