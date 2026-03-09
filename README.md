@@ -8,8 +8,7 @@ This repo is my personal experiment log: building and iterating on bots using Cl
 
 | # | Objective | Status | Notes |
 |---|-----------|--------|-------|
-| 01 | Launch | Done | Bot created, starter script ran, hit Woodcutting 11 |
-| 02 | Fishing 70 | In Progress | Reached Fishing 24, died to Dark Wizards, lost net |
+| 01 | Fishing 70 | Done | Level 1 → 70 in one run, net fishing at Draynor |
 
 ## Setup
 
