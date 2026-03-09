@@ -8,7 +8,9 @@ This repo is my personal experiment log: building and iterating on bots using Cl
 
 ### 01 — Fishing 70 (in progress)
 
-First attempt failed — bot died to dark wizards near Draynor Village and lost its fishing net. Second attempt with a fresh bot nailed it: net fished shrimp and anchovies at Draynor from level 1 to 70 in a single uninterrupted run. Now optimizing — faster XP rates, smarter methods, benchmarking.
+First attempt failed — bot died to dark wizards near Draynor Village and lost its fishing net. Second attempt with a fresh bot nailed it: net fished shrimp and anchovies at Draynor from level 1 to 70 in a single uninterrupted run.
+
+**Benchmark:** ~16 minutes, 133,250 XP (~500k XP/hr). Now optimizing.
 
 ## Setup
 
