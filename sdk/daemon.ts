@@ -116,19 +116,19 @@ async function main() {
     await Promise.race([sdk.connect(), connectTimeout]);
     console.error(`[daemon] Connected!`);
 
-    // Wait for initial state
-    try {
-        await sdk.waitForCondition(() => sdk!.getState() !== null, STATE_WAIT_MS);
-        console.error(`[daemon] Initial state received`);
-    } catch {
-        console.error(`[daemon] Warning: initial state not received within ${STATE_WAIT_MS / 1000}s`);
-    }
-
-    // Clean up stale socket
+    // Clean up stale socket and write PID immediately so CLI can discover us
     try { unlinkSync(SOCKET_PATH); } catch {}
-
-    // Write PID file
     writeFileSync(PID_PATH, String(process.pid));
+
+    // Wait for initial state (non-blocking for socket — CLI can connect while we wait)
+    const stateReady = (async () => {
+        try {
+            await sdk!.waitForCondition(() => sdk!.getState() !== null, STATE_WAIT_MS);
+            console.error(`[daemon] Initial state received`);
+        } catch {
+            console.error(`[daemon] Warning: initial state not received within ${STATE_WAIT_MS / 1000}s`);
+        }
+    })();
 
     // Track connection state
     sdk.onConnectionStateChange((state) => {
@@ -413,6 +413,8 @@ async function main() {
                     writeAll(socket, JSON.stringify({ error: 'No code provided' }) + '\n');
                     return;
                 }
+                // Wait for initial state before executing code
+                await stateReady;
                 const timeoutMs = Math.min(Math.max(msg.timeout || 120_000, 1000), 60 * 60 * 1000);
                 const execResult = await executeCode(code, timeoutMs);
                 const output = buildOutput(execResult);
