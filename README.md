@@ -10,9 +10,9 @@ This repo is my personal experiment log: building and iterating on bots using Cl
 
 First attempt failed — bot died to dark wizards near Draynor Village and lost its fishing net. Second attempt with a fresh bot nailed it: net fished shrimp and anchovies at Draynor from level 1 to 70 in a single uninterrupted run.
 
-**Baseline:** ~16 minutes, 133,250 XP (~500k XP/hr).
+**Baseline:** ~21 minutes (1281s fishing time), 133,250 XP.
 
-**Benchmarking:** Ran 4 rounds of automated benchmarks testing tick speed, drop timing, drift tolerance, and spot selection. Most of the work ended up being debugging the benchmark framework itself — found three bugs along the way: an over-engineered setup phase that got bots stuck before they even started fishing, level-up dialogs silently blocking all interactions (costing ~60s per level-up), and an escape route that ran bots north into dark wizards instead of south to safety. After fixing all three, the baseline lands consistently around ~20 min. The ~4 min gap vs the original run is likely framework overhead. Still haven't beaten the original simple script.
+**Benchmarking:** Ran 4 rounds of automated benchmarks (15+ bots) testing tick speed, drop timing, drift tolerance, and spot selection. Spent most of the time debugging — chased red herrings around level-up dialogs and framework overhead before discovering the real bug: the escape code ran bots north into dark wizards instead of south to safety (`z+` is north in RS, not south). Once fixed, everything worked. No variant beat the simple baseline — simplicity wins. Next optimization lever is fly fishing (trout at 50 XP vs shrimp at 10 XP).
 
 ## Setup
 

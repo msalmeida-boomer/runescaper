@@ -88,3 +88,32 @@ if (drift > MAX_DRIFT) {
     await ctx.bot.walkTo(START_AREA.x, START_AREA.z);
 }
 ```
+
+## Dark Wizard Escape (CRITICAL BUG FIX)
+
+**z+ is NORTH in RuneScape, z- is SOUTH.** If taking damage near Draynor, flee SOUTH (z - 20), not north. The dark wizards are north of the fishing spot.
+
+```typescript
+// CORRECT — flee south away from dark wizards
+if (state.player.hp <= state.player.maxHp - 3) {
+    await bot.walkTo(DRAYNOR_FISHING.x, DRAYNOR_FISHING.z - 20, 3);
+}
+
+// WRONG — this runs NORTH into the dark wizards!
+// await bot.walkTo(DRAYNOR_FISHING.x, DRAYNOR_FISHING.z + 20, 3);
+```
+
+Also, `hp < maxHp` is too sensitive — triggers on 1 point of chip damage. Use `hp <= maxHp - 3` to only flee when actually under attack.
+
+## Benchmark Results (Fishing 70, net fishing at Draynor)
+
+**True baseline:** ~21 min (1281s fishing time) from level 1 to 70.
+
+Ran 4 rounds of automated benchmarks (15+ bots total). Key findings:
+- No variant (tick speed, drop timing, drift tolerance, spot selection) beat the simple baseline
+- The simple script wins: skip tutorial → walk to Draynor → find spot → click net → wait 3 ticks → drop when full
+- Over-engineered setup phases (buying gear, pickpocketing for coins) make bots fragile
+- `bot.dismissBlockingUI()` is probably unnecessary — clicking the fishing spot dismisses level-up dialogs
+- Stuck detection (60s no XP → re-walk) is essential
+
+**Optimization frontier:** Fly fishing (trout 50 XP vs shrimp 10 XP) is the next real lever. Needs shop interaction for rod + feathers.
