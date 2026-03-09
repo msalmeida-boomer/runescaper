@@ -311,6 +311,17 @@ export class BotActions {
         loc: NearbyLoc | string | RegExp,
         options: { timeout?: number } = {}
     ): Promise<UseItemOnLocResult> {
+        return this.helpers.withDoorRetry(
+            () => this._useItemOnLocOnce(item, loc, options),
+            (r) => r.reason === 'cant_reach'
+        );
+    }
+
+    private async _useItemOnLocOnce(
+        item: InventoryItem | string | RegExp,
+        loc: NearbyLoc | string | RegExp,
+        options: { timeout?: number } = {}
+    ): Promise<UseItemOnLocResult> {
         const { timeout = 10000 } = options;
 
         await this.dismissBlockingUI();
@@ -2326,6 +2337,16 @@ export class BotActions {
         target: NearbyLoc | string | RegExp,
         option: number | string | RegExp = 1,
     ): Promise<InteractLocResult> {
+        return this.helpers.withDoorRetry(
+            () => this._interactLocOnce(target, option),
+            (r) => r.reason === 'cant_reach'
+        );
+    }
+
+    private async _interactLocOnce(
+        target: NearbyLoc | string | RegExp,
+        option: number | string | RegExp = 1,
+    ): Promise<InteractLocResult> {
         await this.dismissBlockingUI();
 
         const loc = this.helpers.resolveLocation(target, /./);
@@ -2422,6 +2443,16 @@ export class BotActions {
      * @param option - Option index or name regex to match (default: 1, the first option)
      */
     async interactNpc(
+        target: NearbyNpc | string | RegExp,
+        option: number | string | RegExp = 1,
+    ): Promise<InteractNpcResult> {
+        return this.helpers.withDoorRetry(
+            () => this._interactNpcOnce(target, option),
+            (r) => r.reason === 'cant_reach'
+        );
+    }
+
+    private async _interactNpcOnce(
         target: NearbyNpc | string | RegExp,
         option: number | string | RegExp = 1,
     ): Promise<InteractNpcResult> {
