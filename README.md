@@ -6,9 +6,13 @@ This repo is my personal experiment log: building and iterating on bots using Cl
 
 ## Objectives
 
-| # | Objective | Status | Notes |
-|---|-----------|--------|-------|
-| 01 | Fishing 70 | Done | Level 1 → 70 in one run, net fishing at Draynor |
+### 01 — Fishing 70 (done)
+
+First attempt failed — bot died to dark wizards near Draynor Village and lost its fishing net. Second attempt with a fresh bot nailed it: net fished shrimp and anchovies at Draynor from level 1 to 70 in a single uninterrupted run.
+
+### 02 — Optimize (next)
+
+Take what worked and make it better. Faster XP rates, smarter methods, benchmarking.
 
 ## Setup
 
