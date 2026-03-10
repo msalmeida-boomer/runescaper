@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Runescaper Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Courier New', monospace;
+    background: #0d1117;
+    color: #c9d1d9;
+    padding: 20px;
+}
+h1 { color: #58a6ff; margin-bottom: 4px; font-size: 1.4em; }
+.subtitle { color: #8b949e; font-size: 0.85em; margin-bottom: 20px; }
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #21262d;
+    padding-bottom: 12px;
+}
+.header-left h1 { margin-bottom: 2px; }
+.controls { display: flex; gap: 10px; align-items: center; }
+button {
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85em;
+    border-radius: 4px;
+}
+button:hover { background: #30363d; }
+button.active { background: #1f6feb; border-color: #58a6ff; }
+.auto-label { font-size: 0.8em; color: #8b949e; }
+
+/* Runs table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 24px;
+    font-size: 0.85em;
+}
+th {
+    text-align: left;
+    padding: 8px 10px;
+    background: #161b22;
+    border-bottom: 2px solid #21262d;
+    color: #8b949e;
+    font-weight: normal;
+    text-transform: uppercase;
+    font-size: 0.75em;
+    letter-spacing: 0.5px;
+}
+td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #21262d;
+}
+tr { cursor: pointer; }
+tr:hover td { background: #161b22; }
+tr.selected td { background: #1c2333; border-color: #1f6feb; }
+.outcome-success { color: #3fb950; }
+.outcome-failure, .outcome-crash { color: #f85149; }
+.outcome-timeout { color: #d29922; }
+.outcome-in_progress { color: #58a6ff; }
+
+/* Detail panels */
+.detail-section {
+    display: none;
+    margin-bottom: 24px;
+}
+.detail-section.visible { display: block; }
+.detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.detail-header h2 {
+    color: #58a6ff;
+    font-size: 1.1em;
+}
+.close-btn {
+    background: none;
+    border: none;
+    color: #8b949e;
+    cursor: pointer;
+    font-size: 1.2em;
+    padding: 4px 8px;
+}
+.close-btn:hover { color: #c9d1d9; }
+
+/* Charts */
+.charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.chart-box {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 16px;
+}
+.chart-box h3 {
+    color: #8b949e;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+canvas { max-height: 250px; }
+
+/* Stats grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.stat-card {
+    background: #161b22;
+    border: 1px solid #21262d;
+    border-radius: 6px;
+    padding: 12px;
+    text-align: center;
+}
+.stat-value {
+    font-size: 1.5em;
+    color: #58a6ff;
+    font-weight: bold;
+}
+.stat-label {
+    font-size: 0.75em;
+    color: #8b949e;
+    text-transform: uppercase;
+    margin-top: 4px;
+}
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8b949e;
+}
+.empty-state p { margin-bottom: 10px; }
+@media (max-width: 800px) {
+    .charts-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <h1>Runescaper Dashboard</h1>
+        <div class="subtitle">Telemetry & Run Analysis</div>
+    </div>
+    <div class="controls">
+        <button id="refreshBtn" onclick="refresh()">Refresh</button>
+        <button id="autoBtn" onclick="toggleAuto()">Auto: Off</button>
+    </div>
+</div>
+
+<div id="runsTable"></div>
+
+<div id="detailSection" class="detail-section">
+    <div class="detail-header">
+        <h2 id="detailTitle">Run Detail</h2>
+        <button class="close-btn" onclick="closeDetail()">x</button>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="charts-grid">
+        <div class="chart-box">
+            <h3>XP/min Over Time</h3>
+            <canvas id="xpChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>Level Progression</h3>
+            <canvas id="levelChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+let autoRefresh = false;
+let autoTimer = null;
+let xpChart = null;
+let levelChart = null;
+let selectedRun = null;
+
+const chartDefaults = {
+    color: '#8b949e',
+    borderColor: '#21262d',
+    font: { family: "'Courier New', monospace" }
+};
+Chart.defaults.color = chartDefaults.color;
+Chart.defaults.font.family = chartDefaults.font.family;
+
+async function refresh() {
+    const res = await fetch('/api/overview');
+    const runs = await res.json();
+    renderTable(runs);
+    if (selectedRun) {
+        await loadDetail(selectedRun.botName, selectedRun.filename);
+    }
+}
+
+function renderTable(runs) {
+    if (runs.length === 0) {
+        document.getElementById('runsTable').innerHTML = `
+            <div class="empty-state">
+                <p>No runs yet.</p>
+                <p>Add telemetry to a bot script and run it to see data here.</p>
+            </div>`;
+        return;
+    }
+
+    let html = `<table>
+        <thead><tr>
+            <th>Bot</th><th>Time</th><th>Duration</th><th>Goal</th>
+            <th>Outcome</th><th>Skill</th><th>XP Gained</th><th>XP/min</th><th>Levels</th>
+        </tr></thead><tbody>`;
+
+    for (const run of runs) {
+        const s = run.summary || {};
+        const dur = s.durationMs ? formatDuration(s.durationMs) : '-';
+        const outcome = s.outcome || 'unknown';
+        const time = s.startTime ? new Date(s.startTime).toLocaleString() : run.filename;
+
+        // Find primary skill (highest XP gained)
+        let primarySkill = '-';
+        let primaryXp = 0;
+        let primaryXpMin = 0;
+        let levels = '-';
+        if (s.skillDeltas) {
+            for (const [name, d] of Object.entries(s.skillDeltas)) {
+                if (d.xpGained > primaryXp) {
+                    primarySkill = name;
+                    primaryXp = d.xpGained;
+                    levels = `${d.startLevel} -> ${d.endLevel}`;
+                }
+            }
+        }
+        if (s.xpPerMinute && s.xpPerMinute[primarySkill]) {
+            primaryXpMin = s.xpPerMinute[primarySkill];
+        }
+
+        const sel = selectedRun?.botName === run.botName && selectedRun?.filename === run.filename ? ' selected' : '';
+        html += `<tr class="${sel}" onclick="selectRun('${run.botName}','${run.filename}')">
+            <td>${run.botName}</td>
+            <td>${time}</td>
+            <td>${dur}</td>
+            <td>${s.goal || '-'}</td>
+            <td class="outcome-${outcome}">${outcome}</td>
+            <td>${primarySkill}</td>
+            <td>${primaryXp > 0 ? primaryXp.toLocaleString() : '-'}</td>
+            <td>${primaryXpMin > 0 ? primaryXpMin.toLocaleString() : '-'}</td>
+            <td>${levels}</td>
+        </tr>`;
+    }
+
+    html += '</tbody></table>';
+    document.getElementById('runsTable').innerHTML = html;
+}
+
+async function selectRun(botName, filename) {
+    selectedRun = { botName, filename };
+    await loadDetail(botName, filename);
+    refresh(); // re-render table to update selected row
+}
+
+async function loadDetail(botName, filename) {
+    const res = await fetch(`/api/run/${botName}/${filename}`);
+    const data = await res.json();
+    if (data.error) return;
+
+    const { events, summary } = data;
+    document.getElementById('detailSection').classList.add('visible');
+    document.getElementById('detailTitle').textContent = `${botName} - ${filename}`;
+
+    renderStats(summary, events);
+    renderXpChart(events);
+    renderLevelChart(events);
+}
+
+function closeDetail() {
+    document.getElementById('detailSection').classList.remove('visible');
+    selectedRun = null;
+    refresh();
+}
+
+function renderStats(summary, events) {
+    const s = summary || {};
+    const xpGains = events.filter(e => e.type === 'xp_gain');
+    const deaths = events.filter(e => e.type === 'death').length;
+    const hpHits = events.filter(e => e.type === 'hp_change' && e.delta < 0).length;
+    const levelUps = events.filter(e => e.type === 'level_up');
+
+    const cards = [
+        { value: formatDuration(s.durationMs || 0), label: 'Duration' },
+        { value: (s.totalXpGained || 0).toLocaleString(), label: 'Total XP' },
+        { value: xpGains.length.toLocaleString(), label: 'XP Events' },
+        { value: levelUps.length, label: 'Level Ups' },
+        { value: deaths, label: 'Deaths' },
+        { value: hpHits, label: 'Damage Taken' },
+        { value: s.outcome || 'unknown', label: 'Outcome' },
+        { value: events.length.toLocaleString(), label: 'Total Events' },
+    ];
+
+    document.getElementById('statsGrid').innerHTML = cards.map(c =>
+        `<div class="stat-card"><div class="stat-value">${c.value}</div><div class="stat-label">${c.label}</div></div>`
+    ).join('');
+}
+
+function renderXpChart(events) {
+    const xpGains = events.filter(e => e.type === 'xp_gain');
+    if (xpGains.length === 0) {
+        destroyChart('xp');
+        return;
+    }
+
+    const startTs = events[0]?.ts || xpGains[0].ts;
+    const bucketMs = 30000;
+
+    // Group by skill
+    const skills = {};
+    for (const e of xpGains) {
+        if (!skills[e.skill]) skills[e.skill] = {};
+        const bucket = Math.floor((e.ts - startTs) / bucketMs);
+        skills[e.skill][bucket] = (skills[e.skill][bucket] || 0) + e.xpGained;
+    }
+
+    const maxBucket = Math.max(...xpGains.map(e => Math.floor((e.ts - startTs) / bucketMs)));
+    const labels = Array.from({ length: maxBucket + 1 }, (_, i) => ((i * bucketMs) / 60000).toFixed(1));
+
+    const colors = ['#58a6ff', '#3fb950', '#d29922', '#f85149', '#bc8cff', '#f778ba'];
+    const datasets = Object.entries(skills).map(([skill, buckets], i) => ({
+        label: skill,
+        data: labels.map((_, idx) => ((buckets[idx] || 0) * (60000 / bucketMs))),
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length] + '20',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+    }));
+
+    destroyChart('xp');
+    const ctx = document.getElementById('xpChart').getContext('2d');
+    xpChart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            scales: {
+                x: { title: { display: true, text: 'Minutes' }, grid: { color: '#21262d' } },
+                y: { title: { display: true, text: 'XP/min' }, grid: { color: '#21262d' }, beginAtZero: true },
+            },
+            plugins: { legend: { position: 'top' } },
+        },
+    });
+}
+
+function renderLevelChart(events) {
+    const levelUps = events.filter(e => e.type === 'level_up');
+    const runStart = events.find(e => e.type === 'run_start');
+    if (levelUps.length === 0) {
+        destroyChart('level');
+        return;
+    }
+
+    const startTs = events[0]?.ts || levelUps[0].ts;
+
+    // Group by skill
+    const skills = {};
+    // Add starting levels
+    if (runStart?.skills) {
+        for (const [name, info] of Object.entries(runStart.skills)) {
+            if (!skills[name]) skills[name] = [];
+            skills[name].push({ x: 0, y: info.level });
+        }
+    }
+    for (const e of levelUps) {
+        if (!skills[e.skill]) skills[e.skill] = [];
+        skills[e.skill].push({
+            x: ((e.ts - startTs) / 60000).toFixed(2),
+            y: e.newLevel,
+        });
+    }
+
+    const colors = ['#58a6ff', '#3fb950', '#d29922', '#f85149', '#bc8cff'];
+    const datasets = Object.entries(skills)
+        .filter(([_, points]) => points.length > 1 || (points.length === 1 && points[0].y > 1))
+        .map(([skill, points], i) => ({
+            label: skill,
+            data: points,
+            borderColor: colors[i % colors.length],
+            stepped: true,
+            pointRadius: 3,
+            pointBackgroundColor: colors[i % colors.length],
+        }));
+
+    destroyChart('level');
+    const ctx = document.getElementById('levelChart').getContext('2d');
+    levelChart = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    type: 'linear',
+                    title: { display: true, text: 'Minutes' },
+                    grid: { color: '#21262d' },
+                },
+                y: {
+                    title: { display: true, text: 'Level' },
+                    grid: { color: '#21262d' },
+                    beginAtZero: false,
+                },
+            },
+            plugins: { legend: { position: 'top' } },
+        },
+    });
+}
+
+function destroyChart(name) {
+    if (name === 'xp' && xpChart) { xpChart.destroy(); xpChart = null; }
+    if (name === 'level' && levelChart) { levelChart.destroy(); levelChart = null; }
+}
+
+function formatDuration(ms) {
+    if (!ms || ms <= 0) return '-';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const h = Math.floor(m / 60);
+    if (h > 0) return `${h}h ${m % 60}m`;
+    if (m > 0) return `${m}m ${s % 60}s`;
+    return `${s}s`;
+}
+
+function toggleAuto() {
+    autoRefresh = !autoRefresh;
+    document.getElementById('autoBtn').textContent = `Auto: ${autoRefresh ? 'On' : 'Off'}`;
+    document.getElementById('autoBtn').classList.toggle('active', autoRefresh);
+    if (autoRefresh) {
+        autoTimer = setInterval(refresh, 10000);
+    } else if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+    }
+}
+
+// Initial load
+refresh();
+</script>
+</body>
+</html>

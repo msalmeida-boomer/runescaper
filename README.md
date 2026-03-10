@@ -1,15 +1,15 @@
 # runescaper
 
-A fork of [MaxBittker/rs-sdk](https://github.com/MaxBittker/rs-sdk), an awesome RuneScape automation library built for coding agents.
+AI-powered RuneScape bots built with [Claude Code](https://claude.ai) + [rs-sdk](https://github.com/MaxBittker/rs-sdk) on the 2004scape demo server.
 
-This repo is my personal experiment log. I'm building and iterating on bots using Claude Code + rs-sdk on the 2004scape demo server. Everything here is public so others can follow along or learn from the process.
+Full session log: [logs/journal.md](logs/journal.md)
 
 ## Objectives
 
-### 01. Fishing 99 (in progress)
+**02. Dashboard & Optimization** (current) — Upgrade telemetry dashboard, beat the 2h40m fishing record.
 
-Started by getting to level 70 with a simple net fishing script at Draynor Village. Took about 21 minutes. Ran a bunch of benchmarks trying to optimize but learned that the simple script was already about as fast as it gets for net fishing. Now going for 99 and building better tools to track and compare runs across different strategies.
+**01. Fishing 99** (complete) — Level 1 to 99 in 2h40m using fly fishing with a resupply loop. [Details](logs/journal.md#session-5-telemetry-dashboard-and-the-fishing-campaign)
 
 ## Setup
 
-See the [original rs-sdk README](https://github.com/MaxBittker/rs-sdk) for full setup instructions, architecture docs, and server details.
+See [rs-sdk](https://github.com/MaxBittker/rs-sdk) for setup instructions.
